@@ -14,7 +14,7 @@ models:
     description: "A model combining customer order history with their lifetime value."
     columns:
       - name: customer_id
-        description: "Unique identifier for a customer"
+        description: "Unique identifier for the customer"
       - name: first_name
         description: "Customer's first name"
       - name: last_name

@@ -182,10 +182,78 @@ The objective is to:
 2. Save the connection.
 3. Create a GitHub Repository 'HevoData' and link to the DBT Project.
 4. Once linked, go to Studio and under the File Explorer, select the HevoData folder.
-5. In the `models` folder, create the metadata configuration file `schema.yml` that declares the data sources (where to find the raw data), documents the models (what the model means) and defines the tests (what the user wants to test).
+5. In the `models` folder, create the metadata configuration file `schema.yml` that declares the data sources (where to find the raw data),
+   documents the models (what the model means) and defines the tests (what the user wants to test).
+   ```yaml
+   version: 2
+
+   sources:
+     - name: PUBLIC
+       database: PC_HEVODATA_DB
+       schema: PUBLIC
+       tables:
+         - name: raw_customers
+         - name: raw_orders
+         - name: raw_payments
+   
+   models:
+     - name: lifetime_value
+       description: "A model combining customer order history with their lifetime value."
+       columns:
+         - name: customer_id
+           description: "Unique identifier for the customer"
+         - name: first_name
+           description: "Customer's first name"
+         - name: last_name
+           description: "Customer's last name"
+      - name: first_order
+        description: "Date of the customer's first order"
+      - name: most_recent_order
+        description: "Date of the customer's most recent order"
+      - name: number_of_orders
+        description: "Total number of orders by the customer"
+      - name: customer_lifetime_value
+        description: "Total value of payments made by the customer"
+   ```
 6. Additionally, create the DBT model file `lifetime_value.sql` that combines and aggregates raw data from the three tables.
-7. Click on Compile and Preview to run the query and get the desired output.
-8. Push all the files and the changes in the GitHub repository, in the correct branch.
-9. The resultant customers CSV file is attached here.
+   
+   ```yaml
+   WITH customer_orders AS (
+     SELECT
+        cx.id AS customer_id,
+        cx.first_name,
+        cx.last_name,
+        MIN(ord.order_date) AS first_order,
+        MAX(ord.order_date) AS most_recent_order,
+        COUNT(ord.id) AS number_of_orders
+     FROM {{ source('PUBLIC', 'raw_customers') }} cx
+     LEFT JOIN {{ source('PUBLIC', 'raw_orders') }} ord
+     ON cx.id = ord.user_id
+     GROUP BY cx.id, cx.first_name, cx.last_name
+   ),
+   customer_lifetime_value AS (
+     SELECT
+        ord.user_id AS customer_id,
+        SUM(pyt.amount) AS customer_lifetime_value
+     FROM {{ source('PUBLIC', 'raw_orders') }} ord
+     LEFT JOIN {{ source('PUBLIC', 'raw_payments') }} pyt
+     ON ord.id = pyt.order_id
+     GROUP BY ord.user_id
+   )
+   SELECT
+    cxord.customer_id,
+    cxord.first_name,
+    cxord.last_name,
+    cxord.first_order,
+    cxord.most_recent_order,
+    cxord.number_of_orders,
+    cxlv.customer_lifetime_value
+   FROM customer_orders cxord
+   LEFT JOIN customer_lifetime_value cxlv
+   ON cxord.customer_id = cxlv.customer_id
+   ```
+8. Click on Compile and Preview to run the query and get the desired output.
+9. Push all the files and the changes in the GitHub repository, in the correct branch.
+10. The resultant customers CSV file is attached [here](https://drive.google.com/file/d/163Q9RbqQuhZl2pBpNXCAT5wyNKqLs2Jx/view?usp=drive_link).
 
 
